@@ -1,9 +1,12 @@
 #pragma once
 
-#include "cell.h"
 #include "common.h"
 
 #include <functional>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 class Sheet : public SheetInterface {
 public:
@@ -16,19 +19,27 @@ public:
 
     void ClearCell(Position pos) override;
 
+    CellInterface::Value operator() (Position pos);
+
     Size GetPrintableSize() const override;
 
     void PrintValues(std::ostream& output) const override;
     void PrintTexts(std::ostream& output) const override;
 
-    const Cell* GetConcreteCell(Position pos) const;
-    Cell* GetConcreteCell(Position pos);
+    // Можете дополнить ваш класс нужными полями и методами
 
 private:
-    void MaybeIncreaseSizeToIncludePosition(Position pos);
-    void PrintCells(std::ostream& output,
-                    const std::function<void(const CellInterface&)>& printCell) const;
-    Size GetActualSize() const;
+    struct PositionHasher {
+        std::size_t operator()(const Position& value) const {
+            using std::hash;
+            return hash<int>()(value.row) ^ hash<int>()(value.col);
+        }
+    };
+    std::unordered_map<Position, std::unique_ptr<CellInterface>, PositionHasher> sheet_;
+    std::map<int, int> row_to_pos_index_;
+    std::map<int, int> col_to_pos_index_;
 
-    std::vector<std::vector<std::unique_ptr<Cell>>> cells_;
+    void CheckValidity(Position pos) const;
+    void CheckCyclicDependencies(CellInterface* vertex) const;
+    void CheckCyclicDependencies(CellInterface* vertex, std::unordered_set<CellInterface*>& used) const;
 };
